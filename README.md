@@ -120,13 +120,14 @@ Use `codehighlight-parser` directly when you only need tokenization, language re
 
 ## 🛠️ Usage
 
+The examples below describe the current source API; publish the upgraded renderer before using them with a release dependency.
+
 ### Basic Code Block
 
 In a Compose Multiplatform project, you can use the `CodeBlock` component directly:
 
 ```kotlin
 import com.hrm.codehigh.renderer.CodeBlock
-import com.hrm.codehigh.theme.OneDarkProTheme
 
 @Composable
 fun MyScreen() {
@@ -137,86 +138,61 @@ fun MyScreen() {
             }
         """.trimIndent(),
         language = "kotlin",
-        theme = OneDarkProTheme,
         showLineNumbers = true,
         showCopyButton = true
     )
 }
 ```
 
-### Inline Code
+### Shared appearance API
 
-For inline code within text, the default style follows a single `InlineCodeStyle` contract: light themes use a `#F6F8FA` background with a `#D0D7DE` 1dp border, dark themes use a `#30363D` background with a `#3D444D` 1dp border, and text keeps the theme plain color. The border is part of the component style contract, so rendering and measurement stay aligned as long as you reuse the same style.
-
-```kotlin
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.runtime.remember
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.hrm.codehigh.renderer.InlineCode
-import com.hrm.codehigh.renderer.InlineCodeDefaults
-
-@Composable
-fun MyText() {
-    val baseStyle = InlineCodeDefaults.style()
-    val customInlineCodeStyle = remember(baseStyle) {
-        baseStyle.copy(
-            textStyle = baseStyle.textStyle.copy(fontSize = 14.sp),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-        )
-    }
-
-    InlineCode(text = "README.md")
-    InlineCode(text = "notes", style = customInlineCodeStyle)
-}
-```
-
-### Measuring Inline Code Size
-
-When you need to pre-occupy space or adjust layout, use the measurement API with the exact same `InlineCodeStyle` that you pass to `InlineCode`. The measured size already includes the style's padding and border, so you can reuse it directly for placeholders or constrained layout slots:
+`CodeBlock(code = code)` and `InlineCode(text = text)` work without configuration. Both accept the same three optional groups: `colors: CodeColors` for syntax and surfaces, `typography: CodeTypography` for text, and `layout: CodeLayout` for padding, shapes, and line-number geometry. Display switches stay direct parameters, as does the single host event, `onTokenClick`.
 
 ```kotlin
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.hrm.codehigh.renderer.InlineCodeDefaults
-import com.hrm.codehigh.renderer.measureInlineCodeSize
-import com.hrm.codehigh.theme.OneDarkProTheme
+import com.hrm.codehigh.renderer.*
 
-@Composable
-fun MeasureExample() {
-    val density = LocalDensity.current
-    val textMeasurer = rememberTextMeasurer()
-    val inlineCodeStyle = remember {
-        val baseStyle = InlineCodeDefaults.style(OneDarkProTheme)
-        baseStyle.copy(
-            textStyle = baseStyle.textStyle.copy(fontSize = 14.sp),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-        )
-    }
+val colors = CodeDefaults.oneDarkProColors()
+val typography = CodeTypography(
+    text = TextStyle(fontSize = 20.sp, lineHeight = 32.sp),
+    inlineCode = TextStyle(fontSize = 14.sp, lineHeight = 20.sp),
+    title = TextStyle(fontSize = 16.sp),
+)
+val layout = CodeLayout(
+    contentPadding = PaddingValues(16.dp),
+    inlineContentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
+)
 
-    val size = remember(inlineCodeStyle) {
-        measureInlineCodeSize(
-            text = "README.md",
-            language = "kotlin",
-            style = inlineCodeStyle,
-            density = density,
-            textMeasurer = textMeasurer,
-        )
-    }
-
-    Box(
-        Modifier
-            .width(size.widthDp(density).dp)
-            .height(size.heightDp(density).dp)
-    )
-}
+CodeBlock(code = code, language = "kotlin", colors = colors, typography = typography, layout = layout)
+InlineCode(text = "README.md", colors = colors, typography = typography, layout = layout)
 ```
 
-Avoid wrapping `InlineCode` in an extra outer border unless you also account for that added decoration in your own layout. The built-in measurement API only guarantees consistency for the style contract declared in `InlineCodeStyle`.
+Rendering defaults are preserved: One Dark Pro, 13sp/20sp body and inline text, 12dp horizontal / 8dp vertical block padding, and 6dp horizontal / 2dp vertical inline padding with a 4dp corner radius and 1dp border. Every preset retains its inline surfaces, borders, diff colors, and highlighted-line colors. Streaming, copy, folding, line numbers, and token clicks keep their behavior; `maxVisibleLines = 0` still supports initially hiding all lines.
+
+### Measuring code
+
+Measurement accepts the same `typography` and `layout` as painting; colors are unnecessary. `measureCodeBlockSize` returns pixel `height`, `lineHeight`, and `toolbarHeight` for a full uncollapsed block. Pass the same source, language, title, and copy-button flag; a trailing newline still represents an additional empty code line. `measureInlineCodeSize` preserves its existing size reservation including padding and border.
+
+```kotlin
+val blockSize = measureCodeBlockSize(
+    code = code,
+    language = "kotlin",
+    typography = typography,
+    layout = layout,
+    density = LocalDensity.current,
+    textMeasurer = rememberTextMeasurer(),
+)
+val inlineSize = measureInlineCodeSize(
+    text = "README.md",
+    typography = typography,
+    layout = layout,
+    density = LocalDensity.current,
+    textMeasurer = rememberTextMeasurer(),
+)
+```
 
 ### Streaming Mode (For AI Chat/Real-time Output)
 
@@ -249,45 +225,37 @@ CodeBlock(
 )
 ```
 
-### Custom Theme
+### Color presets and app defaults
 
-You can create custom themes by implementing the `CodeTheme` interface:
+All four original palettes retain every token color:
+
+| Preset / 预设 | Factory / 工厂 |
+|---|---|
+| GitHub Light | `CodeDefaults.githubLightColors()` / `lightColors()` |
+| One Dark Pro | `CodeDefaults.oneDarkProColors()` / `darkColors()` |
+| Dracula Pro | `CodeDefaults.draculaProColors()` |
+| Solarized Light | `CodeDefaults.solarizedLightColors()` |
+
+`CodeColors()` is a fixed GitHub Light palette; components still default to One Dark Pro. Customize a preset with `.copy(...)`. `ProvideCodeDefaults` supplies app defaults and instance arguments take precedence. `CodeDefaults.colors(keyword = ...)` overrides only that named color and inherits the rest from the current scope.
 
 ```kotlin
 import androidx.compose.ui.graphics.Color
-import com.hrm.codehigh.ast.TokenType
-import com.hrm.codehigh.theme.CodeTheme
-
-object MyCustomTheme : CodeTheme {
-    override val background = Color(0xFF1E1E1E)
-    override val isDark = true
-    
-    override fun colorFor(type: TokenType): Color {
-        return when (type) {
-            TokenType.KEYWORD -> Color(0xFF569CD6)
-            TokenType.STRING -> Color(0xFFCE9178)
-            TokenType.COMMENT -> Color(0xFF6A9955)
-            TokenType.NUMBER -> Color(0xFFB5CEA8)
-            // ... other token types
-            else -> Color(0xFFD4D4D4)
-        }
-    }
-}
-```
-
-### Using LocalCodeTheme for Global Theming
-
-Use `CompositionLocal` to provide a theme globally:
-
-```kotlin
-import com.hrm.codehigh.theme.LocalCodeTheme
-import com.hrm.codehigh.theme.GithubLightTheme
+import com.hrm.codehigh.renderer.*
 
 @Composable
 fun App() {
-    CompositionLocalProvider(LocalCodeTheme provides GithubLightTheme) {
-        // All CodeBlocks in this scope will use GithubLightTheme
-        CodeBlock(code = "...", language = "kotlin")
+    val colors = CodeDefaults.githubLightColors().copy(
+        keyword = Color(0xFF569CD6),
+        string = Color(0xFFCE9178),
+    )
+    ProvideCodeDefaults(colors = colors) {
+        CodeBlock(code = "val answer = 42", language = "kotlin")
+        InlineCode(text = "answer")
+        CodeBlock(
+            code = "println(answer)", language = "kotlin",
+            colors = CodeDefaults.colors(keyword = Color.Magenta),
+            onTokenClick = { token -> /* host action */ },
+        )
     }
 }
 ```

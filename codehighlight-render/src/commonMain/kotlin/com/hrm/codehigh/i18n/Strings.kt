@@ -58,11 +58,6 @@ internal object Strings {
      * 已复制提示文本
      */
     fun copied(): String = if (isChinese) "已复制" else "Copied"
-
-    /**
-     * 行号列标题
-     */
-    fun lineNumber(): String = if (isChinese) "行" else "Line"
 }
 
 /**

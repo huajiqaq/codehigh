@@ -38,27 +38,22 @@
 
 ---
 
-## 2. 主题系统（`theme/`）
+## 2. 外观配置（`renderer/`）
 
 ### ✅ 已实现
 
-#### CodeTheme 接口
-- ✅ `fun colorFor(type: TokenType): Color` 按 Token 类型返回颜色
-- ✅ `val background: Color` 代码块背景色
-- ✅ `val isDark: Boolean` 是否为暗色主题
-- ✅ `internal fun CodeTheme.safeColorFor(type: TokenType): Color` 缺失类型回退到 `PLAIN` 颜色
-
-#### 内置主题（4 套）
-- ✅ `OneDarkProTheme`（暗色）— 基于 Atom One Dark Pro 配色
-- ✅ `GithubLightTheme`（亮色）— 基于 GitHub 代码高亮配色
-- ✅ `DraculaProTheme`（暗色）— 基于 Dracula Pro 配色
-- ✅ `SolarizedLightTheme`（亮色）— 基于 Solarized Light 配色
-
-#### 主题注入与切换
-- ✅ `LocalCodeTheme` CompositionLocal，支持全局主题注入
-- ✅ `isSystemInDarkTheme()` 自动选择默认主题（暗色系统 → `OneDarkProTheme`，亮色系统 → `GithubLightTheme`）
-- ✅ 主题切换触发 Compose 重组，代码块颜色实时更新，无需重新解析 AST
-- ✅ 开发者传入自定义 `CodeTheme` 覆盖默认主题
+- ✅ `CodeColors` 按 `TokenType` 提供完整语法颜色，以及背景、行号、工具栏、行内代码、Diff 与行高亮配色
+- ✅ `CodeTypography` 管理正文、行内代码、标题、语言、复制与折叠文字字体
+- ✅ `CodeLayout` 管理代码块与行内代码内边距、形状、边框与行号尺寸
+- ✅ `CodeDefaults.oneDarkProColors()` 保留 One Dark Pro 原配色
+- ✅ `CodeDefaults.githubLightColors()` 保留 GitHub Light 原配色
+- ✅ `CodeDefaults.draculaProColors()` 保留 Dracula Pro 原配色
+- ✅ `CodeDefaults.solarizedLightColors()` 保留 Solarized Light 原配色
+- ✅ `lightColors()` / `darkColors()` 分别使用 GitHub Light / One Dark Pro
+- ✅ `ProvideCodeDefaults` 提供作用域默认值，实例参数可覆盖
+- ✅ `CodeDefaults.colors(keyword = ...)` 继承其余颜色，`typography()` / `layout()` 读取作用域默认值
+- ✅ 默认仍为 One Dark Pro，切换颜色不重新解析 AST
+- ✅ 自定义颜色通过 `.copy(...)`，不再实现接口
 
 **覆盖率**: 12/12 (100%)
 
@@ -324,7 +319,7 @@
 ### ✅ 已实现
 
 #### CodeBlock 组件（`public`，唯一对外渲染入口）
-- ✅ `CodeBlock(code, language, isStreaming, theme, showLineNumbers, startLine, highlightedLines, showCopyButton, maxVisibleLines, onTokenClick)` 完整签名
+- ✅ `CodeBlock(code, language, title, colors, typography, layout, isStreaming, showLineNumbers, startLine, highlightedLines, showCopyButton, maxVisibleLines, onTokenClick)` 完整签名
 - ✅ `isStreaming` 参数默认为 `false`；为 `true` 时在末尾显示光标动画，内部自动启用增量解析
 - ✅ **默认启用增量解析**：内部持有 `IncrementalHighlighter`，每次 `code` 变化时自动增量更新，无需调用方感知
 - ✅ 语言标签显示（右上角或左上角，`internal LanguageLabel`）
@@ -336,16 +331,16 @@
 - ✅ 代码折叠/展开按钮（`maxVisibleLines` 配置，超出行数时显示）
 - ✅ 水平滚动支持（代码行超出宽度时可横向滚动，不截断）
 - ✅ 等宽字体渲染（`FontFamily.Monospace`，保证代码对齐）
-- ✅ Token 长按回调（`onTokenClick(token: CodeToken)`，传递 Token 类型、文本和位置）
+- ✅ Token 点击回调（`onTokenClick(token: CodeToken)`，传递 Token 类型、文本和位置）
 
 #### InlineCode 组件（`public`）
-- ✅ `InlineCode(text, style)` 行内代码组件
-- ✅ 主题与外观统一收敛到 `InlineCodeStyle`
+- ✅ `InlineCode(text, colors, typography, layout)` 行内代码组件
+- ✅ 与 CodeBlock 共享 `CodeColors`、`CodeTypography`、`CodeLayout`
 - ✅ 适配行内文本流排版
 
 #### AnnotatedString 构建
-- ✅ `internal fun buildHighlightedString(tokens, theme): AnnotatedString` 构建带颜色 Span 的 AnnotatedString
-- ✅ 每个 Token 对应一个 `SpanStyle`，颜色来自 `CodeTheme.safeColorFor(token.type)`
+- ✅ `fun buildHighlightedString(tokens, colors): AnnotatedString` 构建带颜色 Span 的 AnnotatedString
+- ✅ 每个 Token 对应一个 `SpanStyle`，颜色来自 `CodeColors.colorFor(token.type)`
 - ✅ `SpanStyle` 支持粗体（关键字）、斜体（注释）等字体样式差异化
 
 **覆盖率**: 15/15 (100%)
@@ -386,19 +381,18 @@
 #### 对外公开的 API（`public`）
 - ✅ `TokenType` 枚举（外部主题/渲染需要）
 - ✅ `CodeToken` data class（外部 `onTokenClick` 回调需要）
-- ✅ `CodeTheme` 接口（外部可自定义主题）
-- ✅ `LocalCodeTheme` CompositionLocal（外部注入主题）
+- ✅ `CodeColors`、`CodeTypography`、`CodeLayout`（外部自定义外观）
+- ✅ `CodeDefaults`、`ProvideCodeDefaults`（作用域默认值）
 - ✅ `Lexer` 接口（外部可注入自定义 Lexer）
 - ✅ `LanguageRegistry.get()` / `register()`（注册表访问入口）
 - ✅ `CodeBlock`（**唯一**渲染入口，含 `isStreaming` 参数，默认支持增量解析）
 - ✅ `InlineCode`（行内代码组件）
-- ✅ 4 套内置主题 object（`OneDarkProTheme`、`GithubLightTheme`、`DraculaProTheme`、`SolarizedLightTheme`）
+- ✅ 4 套完整内置配色工厂（One Dark Pro、GitHub Light、Dracula Pro、Solarized Light）
 
 #### 标记为 `internal` 的实现细节
 - ✅ 所有具体 Lexer 实现类（`KotlinLexer`、`JavaLexer`、`PythonLexer` 等）
 - ✅ `PlainTextLexer`（降级兜底）
 - ✅ `CodeAst`（模块内部流转）
-- ✅ `CodeTheme.safeColorFor()`（回退逻辑）
 - ✅ `LanguageRegistry.aliases`（别名映射表）
 - ✅ `registerDefaults()`（模块初始化内部调用）
 - ✅ `LineNumberColumn`、`LanguageLabel`、`CopyButton`（UI 子组件）
@@ -426,7 +420,7 @@
 
 #### ThemeCategory（主题对比分类）
 - ✅ 同一段代码在 4 套内置主题下的对比展示
-- ✅ 每个条目传入不同 `CodeTheme`，调用 `CodeBlock` 渲染
+- ✅ 每个条目传入不同 `CodeColors`，调用 `CodeBlock` 渲染
 
 #### StreamingCategory（流式演示分类）
 - ✅ 用 `LaunchedEffect` + `delay` 模拟逐字符流式输出
@@ -484,7 +478,7 @@
 
 #### 测试覆盖
 - ✅ `KotlinLexerTest`、`JavaLexerTest`、`PythonLexerTest` 等各语言词法分析器单元测试
-- ✅ `CodeThemeTest` 主题系统测试（颜色映射、回退逻辑）
+- ✅ `CodeColorsTest` / `CodeDefaultsTest` 外观测试（原配色、字体、尺寸与独立覆盖）
 - ✅ `IncrementalHighlighterTest` 增量引擎测试（前缀复用、全量重解析触发条件）
 - ✅ 测试框架：`kotlin.test`，执行命令：`./gradlew :code-high:jvmTest`
 
@@ -497,7 +491,7 @@
 | # | 类别 | 已支持 | 缺失 | 覆盖率 |
 |---|------|--------|------|--------|
 | 1 | Token 类型体系（`ast/`） | 18/18 | 0/18 | 100% |
-| 2 | 主题系统（`theme/`） | 12/12 | 0/12 | 100% |
+| 2 | 外观配置（`renderer/`） | 12/12 | 0/12 | 100% |
 | 3 | 词法分析器基础设施（`lexer/`） | 9/9 | 0/9 | 100% |
 | 4 | 语言支持 — 系统语言 | 3/3 | 0/3 | 100% |
 | 5 | 语言支持 — 脚本语言 | 10/10 | 0/10 | 100% |
@@ -597,3 +591,8 @@ androidApp
 | [Shiki 主题系统](https://shiki.style/themes) | TextMate 语法主题规范参考 | 2 |
 | [Tree-sitter](https://tree-sitter.github.io/) | 增量解析引擎设计参考 | 11 |
 | [Compose Multiplatform](https://www.jetbrains.com/compose-multiplatform/) | 渲染层框架 | 10, 11, 13 |
+
+
+## 渲染 API：代码样式与嵌入测量
+
+`CodeBlock` 和 `InlineCode` 的对外外观入口统一为 `colors`、`typography`、`layout`；Markdown 直接复用相同类型。四套内置配色、默认字体与尺寸、复制、折叠、流式与 Token 点击行为保持原值；不增加参数校验。公开 `measureCodeBlockSize` 与组件共享测量，`measureInlineCodeSize` 保留原有预留规则；`onTokenClick` 仍为直接参数，始终调用最新回调。本次只调整 API，不增加语法覆盖项。

@@ -8,8 +8,6 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import com.hrm.codehigh.ast.CodeToken
 import com.hrm.codehigh.ast.TokenType
-import com.hrm.codehigh.theme.CodeTheme
-import com.hrm.codehigh.theme.safeColorFor
 
 internal enum class CodeLineKind {
     NORMAL,
@@ -28,14 +26,14 @@ internal data class CodeLineRender(
 internal fun buildLineRenders(
     sourceLines: List<String>,
     tokens: List<CodeToken>,
-    theme: CodeTheme,
+    colors: CodeColors,
     language: String = "",
     highlightedLines: Set<Int> = emptySet()
 ): List<CodeLineRender> {
     return buildLineRendersFromOffset(
         sourceLines = sourceLines,
         tokens = tokens,
-        theme = theme,
+        colors = colors,
         language = language,
         highlightedLines = highlightedLines,
         startLineIndex = 0,
@@ -46,7 +44,7 @@ internal fun buildLineRenders(
 internal fun buildLineRendersFromOffset(
     sourceLines: List<String>,
     tokens: List<CodeToken>,
-    theme: CodeTheme,
+    colors: CodeColors,
     language: String = "",
     highlightedLines: Set<Int> = emptySet(),
     startLineIndex: Int,
@@ -59,7 +57,7 @@ internal fun buildLineRendersFromOffset(
 
     // 将所有 token 文本拼接后按 \n 拆分，重新映射到每行
     // 策略：先构建整体 AnnotatedString，再按换行符切割
-    val full = buildHighlightedString(visibleTokens, theme)
+    val full = buildHighlightedString(visibleTokens, colors)
     val result = mutableListOf<AnnotatedString>()
     var offset = 0
     for (i in visibleSourceLines.indices) {
@@ -111,16 +109,16 @@ private fun List<CodeToken>.toRelativeTokens(startCharOffset: Int): List<CodeTok
  * 对外公开，供尺寸测量和渲染使用。
  *
  * @param tokens Token 列表
- * @param theme 代码主题
+ * @param colors 语法配色
  * @return 带颜色 Span 的 AnnotatedString
  */
 fun buildHighlightedString(
     tokens: List<CodeToken>,
-    theme: CodeTheme
+    colors: CodeColors
 ): AnnotatedString {
     return buildAnnotatedString {
         for (token in tokens) {
-            val color = theme.safeColorFor(token.type)
+            val color = colors.colorFor(token.type)
             val fontWeight = when (token.type) {
                 TokenType.KEYWORD -> FontWeight.Bold
                 else -> FontWeight.Normal
@@ -164,11 +162,11 @@ internal fun resolveLineKind(
     return if (lineIndex + 1 in highlightedLines) CodeLineKind.HIGHLIGHTED else CodeLineKind.NORMAL
 }
 
-internal fun CodeTheme.backgroundForLine(kind: CodeLineKind) = when (kind) {
+internal fun CodeColors.backgroundForLine(kind: CodeLineKind) = when (kind) {
     CodeLineKind.NORMAL -> Color.Transparent
     CodeLineKind.HIGHLIGHTED -> highlightedLineBackground
     CodeLineKind.DIFF_ADDED -> diffAddedLineBackground
     CodeLineKind.DIFF_REMOVED -> diffRemovedLineBackground
     CodeLineKind.DIFF_META_HEADER -> diffMetaLineBackground
-    CodeLineKind.DIFF_META_HUNK -> diffMetaLineBackground
+    CodeLineKind.DIFF_META_HUNK -> diffHunkLineBackground
 }

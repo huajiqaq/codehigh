@@ -33,9 +33,8 @@ import com.hrm.codehigh.ast.CodeToken
 import com.hrm.codehigh.preview.data.SampleCode
 import com.hrm.codehigh.renderer.CodeBlock
 import com.hrm.codehigh.renderer.InlineCode
-import com.hrm.codehigh.renderer.InlineCodeDefaults
+import com.hrm.codehigh.renderer.CodeDefaults
 import com.hrm.codehigh.renderer.measureInlineCodeSize
-import com.hrm.codehigh.theme.LocalCodeTheme
 import kotlin.math.round
 
 /**
@@ -49,15 +48,14 @@ internal fun InteractionCategory() {
     var lastClickedToken by remember { mutableStateOf<CodeToken?>(null) }
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
-    val theme = LocalCodeTheme.current
-    val inlineCodeStyle = remember(theme) { InlineCodeDefaults.style(theme) }
-    val customInlineCodeStyle = remember(theme) {
-        inlineCodeStyle.copy(
-            textStyle = inlineCodeStyle.textStyle.copy(
-                fontSize = 14.sp,
-            ),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-        )
+    val codeColors = CodeDefaults.colors()
+    val codeTypography = CodeDefaults.typography()
+    val codeLayout = CodeDefaults.layout()
+    val customTypography = remember(codeTypography) {
+        codeTypography.copy(inlineCode = codeTypography.inlineCode.copy(fontSize = 14.sp))
+    }
+    val customLayout = remember(codeLayout) {
+        codeLayout.copy(inlineContentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp))
     }
 
     LazyColumn(
@@ -187,7 +185,7 @@ internal fun InteractionCategory() {
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("默认样式遵循当前的 InlineCodeStyle 协议：亮色主题使用 #F6F8FA 背景和 #D0D7DE 的 1dp 边框，暗色主题使用 #30363D 背景和 #3D444D 的 1dp 边框，文字继续沿用主题的普通代码色。")
+                    Text("默认样式遵循当前的 colors、typography、layout 设置：亮色主题使用 #F6F8FA 背景和 #D0D7DE 的 1dp 边框，暗色主题使用 #30363D 背景和 #3D444D 的 1dp 边框，文字继续沿用主题的普通代码色。")
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -210,15 +208,15 @@ internal fun InteractionCategory() {
                         InlineCode(text = "git commit")
                         Text("会共享同一套背景、边框和文字色规则，适合直接嵌入正文或说明文本。")
                     }
-                    Text("也可以继续通过一个 style 统一控制字号、留白、边框和测量结果：")
+                    Text("也可以继续通过三组参数分别控制字号、留白、边框和测量结果：")
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text("比如")
-                        InlineCode(text = "notes", style = customInlineCodeStyle)
+                        InlineCode(text = "notes", colors = codeColors, typography = customTypography, layout = customLayout)
                         Text("与")
-                        InlineCode(text = "todo", style = customInlineCodeStyle)
+                        InlineCode(text = "todo", colors = codeColors, typography = customTypography, layout = customLayout)
                         Text("可以共享一套外部样式。")
                     }
                 }
@@ -227,10 +225,10 @@ internal fun InteractionCategory() {
 
         item {
             val inlineCodeText = remember { "README.md" }
-            val inlineCodeSize = remember(inlineCodeText, customInlineCodeStyle) {
+            val inlineCodeSize = remember(inlineCodeText, customTypography, customLayout, density, textMeasurer) {
                 measureInlineCodeSize(
                     text = inlineCodeText,
-                    style = customInlineCodeStyle,
+                    typography = customTypography, layout = customLayout,
                     density = density,
                     textMeasurer = textMeasurer,
                 )
@@ -242,7 +240,7 @@ internal fun InteractionCategory() {
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text("行内代码尺寸测量示例", style = MaterialTheme.typography.titleSmall)
-                    Text("以下展示了如何在渲染前预先测量行内代码的尺寸，并直接复用同一个 style：")
+                    Text("以下展示了如何在渲染前预先测量行内代码的尺寸，并直接复用相同的 typography 和 layout：")
                     Card(
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.tertiaryContainer
@@ -251,7 +249,7 @@ internal fun InteractionCategory() {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text("测量结果：", style = MaterialTheme.typography.labelMedium)
                             Text("代码: ")
-                            InlineCode(text = inlineCodeText, style = customInlineCodeStyle)
+                            InlineCode(text = inlineCodeText, colors = codeColors, typography = customTypography, layout = customLayout)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 "宽度: ${inlineCodeSize.width}px (${

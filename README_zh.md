@@ -120,13 +120,14 @@ dependencies {
 
 ## 🛠️ 使用说明
 
+以下示例对应当前源码 API；发布升级后的 renderer 后再使用发布版本接入。
+
 ### 基本代码块
 
 在 Compose Multiplatform 项目中，你可以直接使用 `CodeBlock` 组件：
 
 ```kotlin
 import com.hrm.codehigh.renderer.CodeBlock
-import com.hrm.codehigh.theme.OneDarkProTheme
 
 @Composable
 fun MyScreen() {
@@ -137,86 +138,61 @@ fun MyScreen() {
             }
         """.trimIndent(),
         language = "kotlin",
-        theme = OneDarkProTheme,
         showLineNumbers = true,
         showCopyButton = true
     )
 }
 ```
 
-### 行内代码
+### 统一外观 API
 
-用于文本中的行内代码，默认样式遵循单一的 `InlineCodeStyle` 协议：亮色主题使用 `#F6F8FA` 背景和 `#D0D7DE` 的 1dp 边框，暗色主题使用 `#30363D` 背景和 `#3D444D` 的 1dp 边框，文字继续沿用主题的普通代码色。边框属于组件样式协议的一部分，因此只要测量和渲染复用同一份 style，二者就会保持一致。
-
-```kotlin
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.runtime.remember
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.hrm.codehigh.renderer.InlineCode
-import com.hrm.codehigh.renderer.InlineCodeDefaults
-
-@Composable
-fun MyText() {
-    val baseStyle = InlineCodeDefaults.style()
-    val customInlineCodeStyle = remember(baseStyle) {
-        baseStyle.copy(
-            textStyle = baseStyle.textStyle.copy(fontSize = 14.sp),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-        )
-    }
-
-    InlineCode(text = "README.md")
-    InlineCode(text = "notes", style = customInlineCodeStyle)
-}
-```
-
-### 测量行内代码尺寸
-
-在需要预先占位或调整布局时，可以使用测量 API 计算行内代码的宽高，并传入与 `InlineCode` 完全相同的 `InlineCodeStyle`。测量结果已经包含该 style 的 padding 和 border，因此可以直接用于占位或受约束布局：
+`CodeBlock(code = code)` 和 `InlineCode(text = text)` 均可直接调用。两者使用相同的三个可选入口：`colors: CodeColors` 管理语法与容器配色，`typography: CodeTypography` 管理字体，`layout: CodeLayout` 管理内边距、形状与行号尺寸。显示开关仍是直接参数，唯一的宿主事件仍是 `onTokenClick`。
 
 ```kotlin
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.hrm.codehigh.renderer.InlineCodeDefaults
-import com.hrm.codehigh.renderer.measureInlineCodeSize
-import com.hrm.codehigh.theme.OneDarkProTheme
+import com.hrm.codehigh.renderer.*
 
-@Composable
-fun MeasureExample() {
-    val density = LocalDensity.current
-    val textMeasurer = rememberTextMeasurer()
-    val inlineCodeStyle = remember {
-        val baseStyle = InlineCodeDefaults.style(OneDarkProTheme)
-        baseStyle.copy(
-            textStyle = baseStyle.textStyle.copy(fontSize = 14.sp),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-        )
-    }
+val colors = CodeDefaults.oneDarkProColors()
+val typography = CodeTypography(
+    text = TextStyle(fontSize = 20.sp, lineHeight = 32.sp),
+    inlineCode = TextStyle(fontSize = 14.sp, lineHeight = 20.sp),
+    title = TextStyle(fontSize = 16.sp),
+)
+val layout = CodeLayout(
+    contentPadding = PaddingValues(16.dp),
+    inlineContentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
+)
 
-    val size = remember(inlineCodeStyle) {
-        measureInlineCodeSize(
-            text = "README.md",
-            language = "kotlin",
-            style = inlineCodeStyle,
-            density = density,
-            textMeasurer = textMeasurer,
-        )
-    }
-
-    Box(
-        Modifier
-            .width(size.widthDp(density).dp)
-            .height(size.heightDp(density).dp)
-    )
-}
+CodeBlock(code = code, language = "kotlin", colors = colors, typography = typography, layout = layout)
+InlineCode(text = "README.md", colors = colors, typography = typography, layout = layout)
 ```
 
-如果你在 `InlineCode` 外层额外再包一层自己的边框或其它装饰，需要由外部自己把这部分尺寸补进布局；内置测量 API 只保证 `InlineCodeStyle` 协议内的尺寸与渲染一致。
+默认渲染保持原值：One Dark Pro 配色，正文与行内代码为 13sp/20sp，代码块内边距横向 12dp、纵向 8dp；行内代码内边距横向 6dp、纵向 2dp，圆角 4dp、边框 1dp。亮暗预设各自的行内背景、边框、Diff 和行高亮颜色全部保留。流式输出、复制、折叠、行号与 Token 点击行为不变；`maxVisibleLines = 0` 仍可用于初始全部折叠。
+
+### 代码尺寸测量
+
+测量函数接收与绘制相同的 `typography`、`layout`，不需要颜色。`measureCodeBlockSize` 返回完整未折叠代码块的像素 `height`、`lineHeight`、`toolbarHeight`。传入相同源码、语言、标题和复制开关；末尾换行仍代表一个额外空代码行。`measureInlineCodeSize` 保留原先包含内边距与边框的尺寸预留规则。
+
+```kotlin
+val blockSize = measureCodeBlockSize(
+    code = code,
+    language = "kotlin",
+    typography = typography,
+    layout = layout,
+    density = LocalDensity.current,
+    textMeasurer = rememberTextMeasurer(),
+)
+val inlineSize = measureInlineCodeSize(
+    text = "README.md",
+    typography = typography,
+    layout = layout,
+    density = LocalDensity.current,
+    textMeasurer = rememberTextMeasurer(),
+)
+```
 
 ### 流式模式（适用于 AI 对话/实时输出）
 
@@ -249,45 +225,37 @@ CodeBlock(
 )
 ```
 
-### 自定义主题
+### 配色预设与应用默认值
 
-你可以通过实现 `CodeTheme` 接口来创建自定义主题：
+四套原有配色完整保留，全部 Token 颜色均沿用原值：
+
+| Preset / 预设 | Factory / 工厂 |
+|---|---|
+| GitHub Light | `CodeDefaults.githubLightColors()` / `lightColors()` |
+| One Dark Pro | `CodeDefaults.oneDarkProColors()` / `darkColors()` |
+| Dracula Pro | `CodeDefaults.draculaProColors()` |
+| Solarized Light | `CodeDefaults.solarizedLightColors()` |
+
+`CodeColors()` 是固定 GitHub Light 配色；组件默认仍为 One Dark Pro。可使用预设的 `.copy(...)` 自定义颜色，不再实现主题接口。`ProvideCodeDefaults` 提供应用级默认值，实例参数覆盖默认值；`CodeDefaults.colors(keyword = ...)` 只替换具名颜色，其余继承当前作用域。
 
 ```kotlin
 import androidx.compose.ui.graphics.Color
-import com.hrm.codehigh.ast.TokenType
-import com.hrm.codehigh.theme.CodeTheme
-
-object MyCustomTheme : CodeTheme {
-    override val background = Color(0xFF1E1E1E)
-    override val isDark = true
-    
-    override fun colorFor(type: TokenType): Color {
-        return when (type) {
-            TokenType.KEYWORD -> Color(0xFF569CD6)
-            TokenType.STRING -> Color(0xFFCE9178)
-            TokenType.COMMENT -> Color(0xFF6A9955)
-            TokenType.NUMBER -> Color(0xFFB5CEA8)
-            // ... 其他 token 类型
-            else -> Color(0xFFD4D4D4)
-        }
-    }
-}
-```
-
-### 使用 LocalCodeTheme 全局主题
-
-使用 `CompositionLocal` 全局提供主题：
-
-```kotlin
-import com.hrm.codehigh.theme.LocalCodeTheme
-import com.hrm.codehigh.theme.GithubLightTheme
+import com.hrm.codehigh.renderer.*
 
 @Composable
 fun App() {
-    CompositionLocalProvider(LocalCodeTheme provides GithubLightTheme) {
-        // 此作用域中的所有 CodeBlock 都将使用 GithubLightTheme
-        CodeBlock(code = "...", language = "kotlin")
+    val colors = CodeDefaults.githubLightColors().copy(
+        keyword = Color(0xFF569CD6),
+        string = Color(0xFFCE9178),
+    )
+    ProvideCodeDefaults(colors = colors) {
+        CodeBlock(code = "val answer = 42", language = "kotlin")
+        InlineCode(text = "answer")
+        CodeBlock(
+            code = "println(answer)", language = "kotlin",
+            colors = CodeDefaults.colors(keyword = Color.Magenta),
+            onTokenClick = { token -> /* host action */ },
+        )
     }
 }
 ```

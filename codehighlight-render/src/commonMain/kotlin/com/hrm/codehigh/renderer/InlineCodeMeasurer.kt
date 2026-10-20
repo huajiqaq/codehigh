@@ -20,7 +20,8 @@ data class InlineCodeSize(
 
 fun measureInlineCodeSize(
     text: String,
-    style: InlineCodeStyle,
+    typography: CodeTypography = CodeTypography(),
+    layout: CodeLayout = CodeLayout(),
     density: Density,
     textMeasurer: androidx.compose.ui.text.TextMeasurer,
     maxWidth: Float = Float.POSITIVE_INFINITY,
@@ -29,11 +30,11 @@ fun measureInlineCodeSize(
 
     return measureAnnotatedStringSize(
         annotatedString = annotatedString,
-        textStyle = style.textStyle,
+        textStyle = typography.resolvedInlineCode,
         density = density,
         maxWidth = maxWidth,
-        contentPadding = style.contentPadding,
-        borderWidth = style.borderWidth,
+        contentPadding = layout.inlineContentPadding,
+        borderWidth = layout.inlineBorderWidth,
         textMeasurer = textMeasurer,
     )
 }

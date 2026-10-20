@@ -2,7 +2,6 @@ package com.hrm.codehigh.renderer
 
 import com.hrm.codehigh.ast.CodeToken
 import com.hrm.codehigh.ast.TokenType
-import com.hrm.codehigh.theme.OneDarkProTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -21,7 +20,7 @@ class CodeLineRenderTest {
                 CodeToken(TokenType.PLAIN, "\n", 25 until 26),
                 CodeToken(TokenType.KEYWORD, "return", 26 until 32)
             ),
-            theme = OneDarkProTheme,
+            colors = CodeDefaults.darkColors(),
             language = "kotlin",
             highlightedLines = setOf(2)
         )
